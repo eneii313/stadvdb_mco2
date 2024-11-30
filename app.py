@@ -67,14 +67,20 @@ def fetch_data_from_node(node, query):
 # -- ROUTES --
 @app.route('/')
 def home():
-    init_connections()
-
-    #sample query
-    query = "SELECT * FROM games LIMIT 10;"
-    data = fetch_data_from_node(nodes[0], query)
-    if data:
-        print(data)
     return render_template("index.html")
+
+@app.route('/all')
+def all():
+    node = nodes[0]
+    query = "SELECT * FROM games LIMIT 10;"
+
+    try_connection(node)
+    data = fetch_data_from_node(node, query)
+    if data:
+        return render_template("table.html", rows=data)
+    
+    return None
+
 
 # -- MAIN EXECUTION --
 if __name__ == '__main__':

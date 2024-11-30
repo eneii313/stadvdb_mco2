@@ -6,6 +6,14 @@ nav {
     font-weight: bold;
 }
 
+.nav-link {
+    color: white;
+}
+
+.nav-link:hover, .nav-link:focus {
+    color: lightgray;
+}
+
 
 #queryTable {
     width: 100%;
