@@ -1,0 +1,7 @@
+pip-tools
+Flask
+pymysql
+sqlalchemy
+mysqlclient
+pandas
+cryptography
