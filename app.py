@@ -9,11 +9,12 @@ PORT = 3000
 HOST = "ccscloud.dlsu.edu.ph"
 PASSWORD = "password"
 DATABASE = "mco2"
+USER = "user1"
 
 nodes = [
-    {"id": 21262, "user": "user1", "online": True, "engine": None},
-    {"id": 21272, "user": "user2", "online": True, "engine": None},
-    {"id": 21282, "user": "user3", "online": True, "engine": None},
+    {"id": 21262, "user": USER, "online": True, "engine": None},
+    {"id": 21272, "user": USER, "online": True, "engine": None},
+    {"id": 21282, "user": USER, "online": True, "engine": None},
 ]
 
 # try to connect to a specific node
@@ -66,10 +67,6 @@ def fetch_data_from_node(node, query):
 # -- ROUTES --
 @app.route('/')
 def home():
-    return render_template("index.html")
-
-# -- MAIN EXECUTION --
-if __name__ == '__main__':
     init_connections()
 
     #sample query
@@ -77,5 +74,8 @@ if __name__ == '__main__':
     data = fetch_data_from_node(nodes[0], query)
     if data:
         print(data)
-        
+    return render_template("index.html")
+
+# -- MAIN EXECUTION --
+if __name__ == '__main__':
     app.run(debug=True, port=PORT)
