@@ -28,18 +28,18 @@ def try_connection(node):
             database=DATABASE
         )
         print(f"Connected to node {node['id']}")
-        return connection
+        node["engine"] = connection
     
     except Exception as e:
+        node["online"] = False
         print(f"Failed to connect to node {node['id']}: {e}")
-        return None
 
 
 # create connection to all nodes
 def init_connections():
     for node in nodes:
-        if node["online"]:
-            node["engine"] = try_connection(node)
+        if node["online"] and not node["engine"]:
+            try_connection(node)
 
 
 # close all connections
@@ -47,6 +47,7 @@ def close_connections():
     for node in nodes:
         if node["engine"]:
             node["engine"].close()
+            node["engine"] = None
             print(f"Connection to node {node['id']} closed.")
 
 
@@ -69,19 +70,29 @@ def fetch_data_from_node(node, query):
 def home():
     return render_template("index.html")
 
-@app.route('/all')
-def all():
-    node = nodes[0]
-    query = "SELECT * FROM games LIMIT 10;"
-
+@app.route('/all_games')
+def all_games():
+    # close all connections before accessing this node
+    close_connections()
+    
+    node = nodes[0] # all games node
     try_connection(node)
+
+    if not node["engine"]:
+        return render_template("error.html", message="Application is not currently connected to the All Games node.")
+    
+    query = "SELECT * FROM games LIMIT 10;"
     data = fetch_data_from_node(node, query)
+
     if data:
         return render_template("table.html", rows=data)
     
-    return None
+    return render_template("error.html", message="No data found or an error occured.")
 
 
 # -- MAIN EXECUTION --
 if __name__ == '__main__':
-    app.run(debug=True, port=PORT)
+    try:
+        app.run(debug=True, port=PORT)
+    finally:
+        close_connections()

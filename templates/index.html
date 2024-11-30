@@ -21,10 +21,10 @@
 <body>
     <nav class="navbar bg-dark border-bottom border-body" data-bs-theme="dark">
         <div class="container d-flex justify-content-between">
-            <a class="navbar-brand" href="#"><i class="fa fa-gamepad"></i> STEAM Games Database </a>
+            <a class="navbar-brand" href="/"><i class="fa fa-gamepad"></i> STEAM Games Database </a>
             <ul class="navbar-nav d-flex flex-row me-auto mb-2 mb-lg-0">
                 <li class="nav-item ms-5">
-                  <a class="nav-link" href="/all">All Games</a>
+                  <a class="nav-link" href="/all_games">All Games</a>
                 </li>
                 <li class="nav-item ms-5">
                   <a class="nav-link" href="#">Windows Exclusive</a>
@@ -36,13 +36,15 @@
         </div>
     </nav>
 
-    <div class="container mt-4">
-        <div id="tableDiv">
-        </div>
+    <div class="container-fluid mt-4">
+        {% block content %}
+        {% endblock %}
     </div>
 
-    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
-    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <footer>
+        <hr/>
+        <em>MCO2 Project - Created by Capunitan, Santiago, & Villarica (XX22)</em>
+    </footer>
+
 </body>
 </html>

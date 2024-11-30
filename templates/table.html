@@ -1,3 +1,6 @@
+{% extends "index.html" %}
+
+{% block content %}
 <h3> Transaction Details </h3>
 <table id="queryTable" class="hideOnStart">
 <thead>
@@ -22,7 +25,9 @@
 </table>
 
 <div id="tableButtons" class="hideOnStart">
-<button id="prevBtn">PREV</button>
-<div>Page <span id="currentPage">1</span></div>
-<button id="nextBtn">NEXT</button>
+    <button id="prevBtn">PREV</button>
+    <div>Page <span id="currentPage">1</span></div>
+    <button id="nextBtn">NEXT</button>
 </div>
+
+{% endblock %}
