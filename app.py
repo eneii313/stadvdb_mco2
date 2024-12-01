@@ -118,6 +118,35 @@ def view_game(appid):
             }
     return render_template("view_game.html", game=game)
 
+@app.route('/edit_game/<int:appid>')
+def edit_game(appid):
+    node_id = session.get('engine')
+    node = next((node for node in nodes if node["id"] == node_id), None)
+
+    query = "SELECT * FROM games WHERE AppID = %s"
+    params = (appid)
+    data = fetch_data_from_node(node, query, params)
+    data = data[0]
+    game = {
+            "app_id": data[0],
+            "name": data[1],
+            "release_date": data[2],
+            "price": float(data[3]), 
+            "required_age": data[4],
+            "dlc_count": data[5],
+            "achievements": data[6],
+            "about_the_game": data[7],
+            "windows": data[8],
+            "mac": data[9],
+            "linux": data[10],
+            "peak_ccu": data[11],
+            "average_playtime_forever": data[12],
+            "average_playtime_2weeks": data[13],
+            "median_playtime_forever": data[14],
+            "median_playtime_2weeks": data[15]
+            }
+    return render_template("edit_game.html", game=game)
+
 @app.route('/all_games')
 def all_games():
     # close all connections before accessing this node

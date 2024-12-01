@@ -66,10 +66,7 @@
 
 <div class="row d-flex mt-4">
     <div class="col-auto">
-        <a id="edit-game-btn" class="btn btn-secondary me-2" href="/edit_game" role="button">Edit Game</a>
-    </div>
-    <div class="col-auto">
-        <a id="delete-game-btn" class="btn btn-danger" href="/delete_game" role="button">Delete Game</a>
+        <a id="edit-game-btn" class="btn btn-secondary me-2" href="{{ url_for('edit_game', appid=game.app_id) }}" role="button">Edit Game</a>
     </div>
 </div>
 
