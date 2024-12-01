@@ -1,0 +1,76 @@
+{% extends 'index.html' %}
+
+{% block content %}
+
+<h2> {{ game.name }} </h2>
+
+<div class="row">
+    <div class="col-2">
+        <h5 class="fst-italic"><i class="fa fa-key"></i> ID: {{game.app_id}}</h5>
+    </div>
+    <div class="col">
+        <h5 class="fst-italic"><i class="fa fa-calendar"></i> Released on {{ game.release_date|format_date }}</h5>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <h5 class="border-bottom border-dark"><i class="fa fa-align-right"></i> About the Game:</h5>
+    <span>{{game.about_the_game}}</span>
+</div>
+
+<div class="row mt-4 justify-content-between">
+    <div class="col-6">
+        <div class="row d-flex flex-row">
+            <h5><i class="fa fa-usd"></i> Price: <span><i class="fa fa-usd"></i> {{game.price}}</span></h5>
+        </div>
+        <div class="row d-flex flex-row">
+            <h5><i class="fa fa-birthday-cake"></i> Required Age: <span>{{game.required_age}}</span></h5>
+        </div>
+        <div class="row d-flex flex-row">
+            <h5><i class="fa fa-trophy"></i> Achievement Count: <span>{{game.achievements}}</span></h5>
+        </div>
+        <div class="row d-flex flex-row">
+            <h5><i class="fa fa-download"></i> DLC Count: <span>{{game.dlc_count}}</span></h5>
+        </div>
+        
+        <div class="row d-flex flex-row mt-4">
+            <h5><i class="fa fa-laptop"></i> OS Compatibility: <span>
+                {%if game.windows == 1 %} <i class="fa fa-windows"></i> {% endif %}
+                {%if game.mac == 1 %} <i class="fa fa-apple"></i> {% endif %}
+                {%if game.linux == 1 %} <i class="fa fa-linux"></i> {% endif %}
+            </h5>
+        </div>
+    </div>
+
+    <div class="col-6">
+        <div class="row d-flex flex-row border-bottom border-dark">
+            <h5><i class="fa fa-clock-o"></i> Playtime Records</h5>
+        </div>
+        <div class="row d-flex flex-row mt-2">
+            <h5><i class="fa fa-users"></i> Peak Concurrent Players: {{game.peak_ccu}}</span></h5>
+        </div>
+        <div class="row d-flex flex-row">
+            <h5>Average All Time: {{game.average_playtime_forever}}</span></h5>
+        </div>
+        <div class="row d-flex flex-row">
+            <h5>Average From Last Two Weeks: {{game.average_playtime_2weeks}}</span></h5>
+        </div>
+        <div class="row d-flex flex-row">
+            <h5>Median All Time: {{game.median_playtime_forever}}</span></h5>
+        </div>
+        <div class="row d-flex flex-row">
+            <h5>Median From Last Two Weeks: {{game.median_playtime_2weeks}}</span></h5>
+        </div>
+    </div>
+</div>
+
+<div class="row d-flex mt-4">
+    <div class="col-auto">
+        <a id="edit-game-btn" class="btn btn-secondary me-2" href="/edit_game" role="button">Edit Game</a>
+    </div>
+    <div class="col-auto">
+        <a id="delete-game-btn" class="btn btn-danger" href="/delete_game" role="button">Delete Game</a>
+    </div>
+</div>
+
+{% endblock %}

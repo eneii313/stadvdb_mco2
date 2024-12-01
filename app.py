@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, session
+from datetime import datetime, date
 import pymysql
 import atexit
 
@@ -63,8 +64,12 @@ def fetch_data_from_node(node, query, params=None):
         except Exception as e:
             print(f"Error querying node {node['id']}: {e}")
     else:
-        print(f"Node {node['id']} is not connected.")
+        print(f"Error in fetching data: Node {node['id']} is not connected.")
     return None
+
+
+# -- SQL ROUTES FOR UPDATING DB --
+
 
 
 # -- ROUTES --
@@ -83,6 +88,35 @@ def new_game():
     session['new_id'] = new_id[0][0] + 10
 
     return render_template("new_game.html", AppID=session.get('new_id'))
+
+@app.route('/view_game/<int:appid>')
+def view_game(appid):
+    node_id = session.get('engine')
+    node = next((node for node in nodes if node["id"] == node_id), None)
+
+    query = "SELECT * FROM games WHERE AppID = %s"
+    params = (appid)
+    data = fetch_data_from_node(node, query, params)
+    data = data[0]
+    game = {
+            "app_id": data[0],
+            "name": data[1],
+            "release_date": data[2],
+            "price": float(data[3]), 
+            "required_age": data[4],
+            "dlc_count": data[5],
+            "achievements": data[6],
+            "about_the_game": data[7],
+            "windows": data[8],
+            "mac": data[9],
+            "linux": data[10],
+            "peak_ccu": data[11],
+            "average_playtime_forever": data[12],
+            "average_playtime_2weeks": data[13],
+            "median_playtime_forever": data[14],
+            "median_playtime_2weeks": data[15]
+            }
+    return render_template("view_game.html", game=game)
 
 @app.route('/all_games')
 def all_games():
@@ -123,6 +157,15 @@ def search_all():
         data = fetch_data_from_node(node, query, params)
         return render_template("table.html", rows=data, query=search, total_count=session.get('total', 0), result_count=len(data))
     
+
+@app.template_filter('format_date')
+def format_date(value):
+    if isinstance(value, date):
+        return value.strftime("%B %d, %Y")
+    try:
+        return datetime.strptime(value, "%Y/%d/%m").strftime("%B %d, %Y")
+    except ValueError:
+        return value
 
 # -- MAIN EXECUTION --
 if __name__ == '__main__':

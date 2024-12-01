@@ -20,7 +20,7 @@
             <td> {{ value }} </td>
             {% endfor %}
             <td>
-                <a class="btn btn-dark" href="#" role="button">View</a>
+                <a class="btn btn-dark" role="button" href="{{ url_for('view_game', appid=row[0]) }}">View</a>
              </td>
          </tr>
          {% endfor %}
