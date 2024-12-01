@@ -1,33 +1,30 @@
-{% extends "index.html" %}
+{% extends 'all_games.html' %}
 
-{% block content %}
-<h3> Transaction Details </h3>
-<table id="queryTable" class="hideOnStart">
-<thead>
-    <tr id="tableHeaders">
-        <!-- Columns will be added here -->
-         {% for column in columns %}
-         <th>{{ column }}</th>
+{% block table %}
+<div class="container mt-4">
+<table id="queryTable">
+    <thead>
+        <tr id="tableHeaders">
+            <!-- Columns will be added here -->
+             <th> AppID </th>
+             <th> Game Title </th>
+             <th> View </th>
+        </tr>
+    </thead>
+    
+    <tbody id="tableBody">
+        <!-- Rows will be added here -->
+         {% for row in rows %}
+         <tr>
+            {% for value in row %}
+            <td> {{ value }} </td>
+            {% endfor %}
+            <td>
+                <a class="btn btn-dark" href="#" role="button">View</a>
+             </td>
+         </tr>
          {% endfor %}
-    </tr>
-</thead>
-
-<tbody id="tableBody">
-    <!-- Rows will be added here -->
-     {% for row in rows %}
-     <tr>
-        {% for value in row %}
-        <td> {{ value }} </td>
-        {% endfor %}
-     </tr>
-     {% endfor %}
-</tbody>
+    </tbody>
 </table>
-
-<div id="tableButtons" class="hideOnStart">
-    <button id="prevBtn">PREV</button>
-    <div>Page <span id="currentPage">1</span></div>
-    <button id="nextBtn">NEXT</button>
 </div>
-
 {% endblock %}

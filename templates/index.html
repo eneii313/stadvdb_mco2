@@ -18,7 +18,7 @@
     <title>Steam Games DB</title>
 
 </head>
-<body>
+<body id="page-container">
     <nav class="navbar bg-dark border-bottom border-body" data-bs-theme="dark">
         <div class="container d-flex justify-content-between">
             <a class="navbar-brand" href="/"><i class="fa fa-gamepad"></i> STEAM Games Database </a>
@@ -27,24 +27,30 @@
                   <a class="nav-link" href="/all_games">All Games</a>
                 </li>
                 <li class="nav-item ms-5">
-                  <a class="nav-link" href="#">Windows Exclusive</a>
+                  <a class="nav-link" href="/windows_exclusive">Windows Exclusive</a>
                 </li>
                 <li class="nav-item ms-5">
-                  <a class="nav-link" href="#">Multi-Platform</a>
+                  <a class="nav-link" href="/multi-platform">Multi-Platform</a>
                 </li>
             </ul>
         </div>
     </nav>
 
     <div class="container-fluid mt-4">
+
+        <div id="main">
         {% block content %}
         {% endblock %}
+        </div>
+
+        <footer>
+            <hr/>
+            <em>MCO2 Project - Created by Capunitan, Santiago, & Villarica (XX22)</em>
+        </footer>
+
     </div>
 
-    <footer>
-        <hr/>
-        <em>MCO2 Project - Created by Capunitan, Santiago, & Villarica (XX22)</em>
-    </footer>
+
 
 </body>
 </html>

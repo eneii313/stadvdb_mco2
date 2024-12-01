@@ -1,7 +1,8 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, session
 import pymysql
 
 app = Flask(__name__)
+app.secret_key = '12345'
 
 PORT = 3000
 
@@ -51,11 +52,11 @@ def close_connections():
             print(f"Connection to node {node['id']} closed.")
 
 
-def fetch_data_from_node(node, query):
+def fetch_data_from_node(node, query, params=None):
     if node["engine"]:
         try:
             with node["engine"].cursor() as cursor:
-                cursor.execute(query)
+                cursor.execute(query, params)
                 result = cursor.fetchall()
                 return result
         except Exception as e:
@@ -74,25 +75,45 @@ def home():
 def all_games():
     # close all connections before accessing this node
     close_connections()
-    
+
     node = nodes[0] # all games node
     try_connection(node)
 
     if not node["engine"]:
         return render_template("error.html", message="Application is not currently connected to the All Games node.")
     
-    query = "SELECT * FROM games LIMIT 10;"
+    query = "SELECT COUNT(*) FROM games;"
     data = fetch_data_from_node(node, query)
 
+    session['total'] = data[0][0]
+
     if data:
-        return render_template("table.html", rows=data)
+        return render_template("all_games.html", total_count=session.get('total', 0))
     
     return render_template("error.html", message="No data found or an error occured.")
 
+@app.route('/search_all')
+def search_all():
+    node = nodes[0] # all games node
+    try_connection(node)
+
+    search = request.args.get('search')
+
+    if not node["engine"]:
+        return render_template("error.html", message="Application is not currently connected to the All Games node.")
+    
+    if search:
+        query = "SELECT AppID, name FROM games WHERE AppID = %s OR `name` LIKE %s"
+        params = (search, f"%{search}%")
+
+        data = fetch_data_from_node(node, query, params)
+        return render_template("table.html", rows=data, query=search, total_count=session.get('total', 0), result_count=len(data))
+    
 
 # -- MAIN EXECUTION --
 if __name__ == '__main__':
     try:
+        # app.run(debug=True, host='0.0.0.0', port=80)
         app.run(debug=True, port=PORT)
     finally:
         close_connections()

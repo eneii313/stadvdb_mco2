@@ -1,0 +1,41 @@
+{% extends "index.html" %}
+
+{% block content %}
+<h3><i class="fa fa-search"></i> Search All Games</h3>
+
+<div class="row">
+    <div class="col-md-6">
+        <form action="/search_all" method="GET">
+            <div class="form-group">
+                <div class="input-group">
+                    <input
+                        type="text"
+                        class="form-control"
+                        id="search"
+                        name="search"
+                        placeholder="Enter a game title or its AppID"
+                        value="{{ query }}"
+                        />
+                    <div class="input-group-append ms-2">
+                        <button type="submit" class="btn btn-secondary">Search</button>
+                    </div>
+                </div>
+            </div>
+
+        </form>
+        
+    </div>
+</div>
+<div class="row mt-2">
+    <h6>{{ result_count | default(0) }} out of {{ total_count  | default(0) }} games</h6>
+</div>
+<div class="mt-2">
+    <a id="add-game-all" class="btn btn-dark" href="#" role="button">+ Add New Game</a>
+</div>
+
+
+
+{% block table %}
+{% endblock %}
+
+{% endblock %}
