@@ -15,16 +15,22 @@ DATABASE = "mco2"
 USER = "user1"
 
 nodes = [
-    {"id": 21262, "user": USER, "online": True, "engine": None},
-    {"id": 21272, "user": USER, "online": True, "engine": None},
-    {"id": 21282, "user": USER, "online": True, "engine": None},
+    {"host": "ccscloud.dlsu.edu.ph", "id": 21262, "user": USER, "online": True, "engine": None},
+    {"host": "ccscloud.dlsu.edu.ph", "id": 21272, "user": USER, "online": True, "engine": None},
+    {"host": "ccscloud.dlsu.edu.ph", "id": 21282, "user": USER, "online": True, "engine": None},
 ]
+
+#nodes = [
+#    {"host": "10.2.0.126",  "id": 3306, "user": USER, "online": True, "engine": None},
+#    {"host": "10.2.0.127", "id": 3306, "user": USER, "online": True, "engine": None},
+#    {"host": "10.2.0.128", "id": 3306, "user": USER, "online": True, "engine": None},
+#]
 
 # try to connect to a specific node
 def try_connection(node):
     try:
         connection = pymysql.connect(
-            host=HOST,
+            host=node["host"],
             port=node["id"],
             user=node["user"],
             password=PASSWORD,
