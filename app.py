@@ -71,6 +71,18 @@ def fetch_data_from_node(node, query, params=None):
 def home():
     return render_template("index.html")
 
+@app.route('/new_game')
+def new_game():
+    node_id = session.get('engine')
+    node = next((node for node in nodes if node["id"] == node_id), None)
+
+    #TODO: auto-increment appid after adding game
+    query = "SELECT AppID FROM games ORDER BY AppID DESC LIMIT 1;"
+    new_id = fetch_data_from_node(node, query)
+    session['new_id'] = new_id[0][0] + 10
+
+    return render_template("new_game.html", AppID=session.get('new_id'))
+
 @app.route('/all_games')
 def all_games():
     # close all connections before accessing this node
@@ -86,6 +98,7 @@ def all_games():
     data = fetch_data_from_node(node, query)
 
     session['total'] = data[0][0]
+    session['engine'] = node['id']
 
     if data:
         return render_template("all_games.html", total_count=session.get('total', 0))
@@ -94,8 +107,8 @@ def all_games():
 
 @app.route('/search_all')
 def search_all():
-    node = nodes[0] # all games node
-    try_connection(node)
+    node_id = session.get('engine')
+    node = next((node for node in nodes if node["id"] == node_id), None)
 
     search = request.args.get('search')
 

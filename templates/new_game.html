@@ -1,0 +1,62 @@
+{% extends 'index.html' %}
+
+{% block content %}
+<h3><i class="fa fa-plus"></i> Add New Game</h3>
+<form id="add_game_form">
+
+    <div class="form-group input-group my-2">
+        <div class="input-group-prepend">
+		    <span class="input-group-text d-block w-100 "> <i class="fa fa-key"></i> AppID</span>
+		 </div>
+        <input name="AppID" class="form-control" value="{{ AppID }}" type="text" disabled readonly>
+    </div>
+
+    <div class="form-group input-group my-2">
+		<div class="input-group-prepend">
+		    <span class="input-group-text d-block w-100 "> <i class="fa fa-gamepad"></i> Title</span>
+		 </div>
+        <input name="name" class="form-control" placeholder="Game title" type="text">
+    </div>
+
+    <div class="form-group input-group my-2">
+    	<div class="input-group-prepend">
+		    <span class="input-group-text d-block w-100 h-100"> <i class="fa fa-align-right"></i> Description</span>
+		 </div>
+        <textarea name="about_the_game" class="form-control" rows="3" placeholder="Game description"></textarea>
+    </div> 
+
+    <div class="form-group input-group my-2">
+    	<div class="input-group-prepend">
+		    <span class="input-group-text d-block w-100 h-100"> <i class="fa fa-calendar"></i> Release Date</span>
+		 </div>
+         <input name="release_date" class="form-control" type="date">
+    </div> 
+
+    <div class="form-group my-2">
+        <div class="row">
+            <div class="col-2">
+                <span class="input-group-text"> <i class="fa fa-laptop"></i> OS Compatibility</span>
+            </div>
+            <div class="col mt-2">
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="checkbox" id="windows_cb" value="windows">
+                    <label class="form-check-label" for="windows_cb">Windows</label>
+                </div>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="checkbox" id="mac_cb" value="mac">
+                    <label class="form-check-label" for="mac_cb">macOS</label>
+                </div>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="checkbox" id="linux_cb" value="linux">
+                    <label class="form-check-label" for="linux_cb">Linux</label>
+                </div>
+            </div>
+        </div>
+    </div> 
+
+    <div class="form-group">
+        <button type="submit" class="btn btn-dark btn-block"> Add Game  </button>
+    </div>
+
+</form>
+{% endblock %}

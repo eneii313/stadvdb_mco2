@@ -17,7 +17,7 @@
                         value="{{ query }}"
                         />
                     <div class="input-group-append ms-2">
-                        <button type="submit" class="btn btn-secondary">Search</button>
+                        <button type="submit" class="btn btn-dark">Search</button>
                     </div>
                 </div>
             </div>
@@ -30,7 +30,7 @@
     <h6>{{ result_count | default(0) }} out of {{ total_count  | default(0) }} games</h6>
 </div>
 <div class="mt-2">
-    <a id="add-game-all" class="btn btn-dark" href="#" role="button">+ Add New Game</a>
+    <a id="add-game-btn" class="btn btn-dark" href="/new_game" role="button">+ Add New Game</a>
 </div>
 
 
