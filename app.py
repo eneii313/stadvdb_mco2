@@ -75,7 +75,23 @@ def fetch_data_from_node(node, query, params=None):
 # -- ROUTES --
 @app.route('/')
 def home():
-    return render_template("all_games.html")
+    #TODO: do proper node selection
+    node = nodes[0] # all games node
+    try_connection(node)
+
+    if not node["engine"]:
+        return render_template("error.html", message="Application is not currently connected to the database.")
+    
+    query = "SELECT COUNT(*) FROM games;"
+    data = fetch_data_from_node(node, query)
+
+    session['total'] = data[0][0]
+    session['engine'] = node['id']
+
+    if data:
+        return render_template("all_games.html", total_count=session.get('total', 0))
+    
+    return render_template("error.html", message="No data found or an error occured.")
 
 @app.route('/new_game')
 def new_game():
@@ -202,8 +218,8 @@ if __name__ == '__main__':
     app.run(debug=True, port=PORT)
 
 # clear sessions when app is shutting down
-@app.teardown_appcontext
-def shutdown_session(exception=None):
-    close_connections()
-    session.clear()
-    print("Session cleared and connections closed.")
+# @app.teardown_appcontext
+# def shutdown_session(exception=None):
+#     close_connections()
+#     session.clear()
+#     print("Session cleared and connections closed.")
