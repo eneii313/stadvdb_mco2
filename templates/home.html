@@ -1,0 +1,9 @@
+{%extends 'index.html' %}
+
+{% block content%}
+    {% if 'engine' in session%}
+    <h4>Active Node: {{ session['engine'] }}</h4>
+    {% else %}
+    <h4>Select a node to begin.</h4>
+    {% endif %}
+{% endblock %}

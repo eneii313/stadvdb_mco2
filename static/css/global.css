@@ -31,6 +31,15 @@ nav {
     color: lightgray;
 }
 
+.active-node {
+    background-color: white;
+
+}
+
+.active-node a {
+    color: #212529;
+}
+
 
 #queryTable {
     width: 100%;

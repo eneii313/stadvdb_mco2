@@ -22,14 +22,14 @@
     <nav class="navbar bg-dark border-bottom border-body" data-bs-theme="dark">
         <div class="container d-flex justify-content-between">
             <a class="navbar-brand" href="/"><i class="fa fa-gamepad"></i> STEAM Games Database </a>
-            <ul class="navbar-nav d-flex flex-row me-auto mb-2 mb-lg-0">
-                <li class="nav-item ms-5">
+            <ul class="navbar-nav d-flex flex-row me-auto mb-lg-0">
+                <li class="nav-item px-3 {% if session['engine'] == 21262 %}active-node{% endif %}">
                   <a class="nav-link" href="/all_games">All Games</a>
                 </li>
-                <li class="nav-item ms-5">
+                <li class="nav-item px-3 {% if session['engine'] == 21272 %}active-node{% endif %}">
                   <a class="nav-link" href="/windows_exclusive">Windows Exclusive</a>
                 </li>
-                <li class="nav-item ms-5">
+                <li class="nav-item px-3 {% if session['engine'] == 21282 %}active-node{% endif %}">
                   <a class="nav-link" href="/multi-platform">Multi-Platform</a>
                 </li>
             </ul>

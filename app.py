@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, session
 import pymysql
+import atexit
 
 app = Flask(__name__)
 app.secret_key = '12345'
@@ -69,7 +70,7 @@ def fetch_data_from_node(node, query, params=None):
 # -- ROUTES --
 @app.route('/')
 def home():
-    return render_template("index.html")
+    return render_template("home.html")
 
 @app.route('/new_game')
 def new_game():
