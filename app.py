@@ -75,7 +75,7 @@ def fetch_data_from_node(node, query, params=None):
 # -- ROUTES --
 @app.route('/')
 def home():
-    return render_template("home.html")
+    return render_template("all_games.html")
 
 @app.route('/new_game')
 def new_game():
@@ -156,7 +156,7 @@ def all_games():
     try_connection(node)
 
     if not node["engine"]:
-        return render_template("error.html", message="Application is not currently connected to the All Games node.")
+        return render_template("error.html", message="Application is not currently connected to the database.")
     
     query = "SELECT COUNT(*) FROM games;"
     data = fetch_data_from_node(node, query)
@@ -177,7 +177,7 @@ def search_all():
     search = request.args.get('search')
 
     if not node["engine"]:
-        return render_template("error.html", message="Application is not currently connected to the All Games node.")
+        return render_template("error.html", message="Application is not currently connected to the database.")
     
     if search:
         query = "SELECT AppID, name FROM games WHERE AppID = %s OR `name` LIKE %s"
@@ -198,8 +198,12 @@ def format_date(value):
 
 # -- MAIN EXECUTION --
 if __name__ == '__main__':
-    try:
-        # app.run(debug=True, host='0.0.0.0', port=80)
-        app.run(debug=True, port=PORT)
-    finally:
-        close_connections()
+    # app.run(debug=True, host='0.0.0.0', port=80)
+    app.run(debug=True, port=PORT)
+
+# clear sessions when app is shutting down
+@app.teardown_appcontext
+def shutdown_session(exception=None):
+    close_connections()
+    session.clear()
+    print("Session cleared and connections closed.")
