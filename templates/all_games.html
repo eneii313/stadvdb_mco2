@@ -1,11 +1,30 @@
 {% extends "index.html" %}
 
 {% block content %}
-<h3><i class="fa fa-search"></i> Search All Games</h3>
+<form action="/search" method="GET">
+<div class="row d-flex flex-row">
+    <h3 class="col-auto"><i class="fa fa-search"></i> Search All Games</h3>
+    <div class="col-auto mt-2 d-flex flex-row">
+        <div class="me-2">
+            <h6><i class="fa fa-filter"></i> Filters</h6>
+        </div>
+        <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="filter" id="all_cb" value="all" {% if filter == "all" %}checked{% endif %}>
+            <label class="form-check-label" for="windows_cb">All Games</label>
+        </div>
+        <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio"  name="filter" id="windows_cb" value="windows" {% if filter=="windows" %}checked {% endif %}>
+            <label class="form-check-label" for="windows_cb">Windows Exclusive</label>
+        </div>
+        <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio"  name="filter" id="multi_cb" value="multiplatform" {% if filter=="multiplatform" %}checked {% endif %}>
+            <label class="form-check-label" for="multi_cb">Multiplatform</label>
+        </div>
+    </div>
+</div>
 
 <div class="row">
     <div class="col-md-6">
-        <form action="/search_all" method="GET">
             <div class="form-group">
                 <div class="input-group">
                     <input
@@ -20,15 +39,12 @@
                         <button id="searchBtn" type="submit" class="btn btn-dark">Search</button>
                     </div>
                 </div>
-            </div>
-
-        </form>
-        
+            </div> 
     </div>
 </div>
-<div class="row mt-2">
-    <h6>{{ result_count | default(0) }} out of {{ total_count  | default(0) }} games</h6>
-</div>
+
+</form>
+
 <div class="mt-2">
     <a id="add-game-btn" class="btn btn-dark" href="/new_game" role="button">+ Add New Game</a>
 </div>

@@ -1,7 +1,12 @@
 {% extends 'all_games.html' %}
 
 {% block table %}
+
 <div class="container mt-4">
+<div class="row mt-2">
+    <h6>Found {{ result_count | default(0) }} games</h6>
+</div>
+
 <table id="queryTable">
     <thead>
         <tr id="tableHeaders">

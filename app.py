@@ -31,10 +31,11 @@ nodes = [
 #]
 
 
+# try to connect to a specific node
 def try_connection(node):
     try:
         engine_url =  f"mysql+pymysql://{USER}:{PASSWORD}@{HOST}:{node['id']}/{SCHEMA}"
-        engine = create_engine(engine_url)
+        engine = create_engine(engine_url, echo=True)
 
         with engine.connect() as connection:
             print(f"Connected to node {node['id']}")
@@ -45,9 +46,9 @@ def try_connection(node):
 
     except Exception as e:
         node["online"] = False
-        print(f"Failed to connect to node {node['id']}: {e}")
+        return render_template("error.html", f"Failed to connect to node {node['id']}: {e}")
 
-# DB connections to each node
+# initialize connections to each node
 def init_connections(): 
     for node in nodes:
         try_connection(node)
@@ -110,26 +111,28 @@ def close_connections():
             print(f"Connection to node {node['id']} closed.")
 
 
-# def fetch_data_from_node(node, query, params=None):
-#     if node["engine"]:
-#         try:
-#             with node["engine"].cursor() as cursor:
-#                 cursor.execute(query, params)
-#                 result = cursor.fetchall()
-#                 return result
-#         except Exception as e:
-#             print(f"Error querying node {node['id']}: {e}")
-#     else:
-#         print(f"Error in fetching data: Node {node['id']} is not connected.")
-#     return None
+# ========== SQL CRUD ROUTES ==========
+# WRITE TRANSACTION
+def create_game(game):
+    #TODO: write to slave nodes after master node
+    master_node = get_master_node()
+    Session = master_node['session']()
 
 
-# -- SQL CRUD ROUTES --
+    # game = session.query(Game).filter_by(id=data_id).first()
+    # game.name = new_name
+    # session.commit()
+    # print(f"Written to master: {new_name}")
+    Session.close()
+
+
+#  READ TRANSACTION
 def fetch_data_from_node(node, query, params=None):
     Session = node['session']()
     if Session:
         try:
             data = Session.execute(query, params).fetchall()
+            Session.close()
             return data
         except Exception as e:
             print(f"Error querying node {node['id']}: {e}")
@@ -137,27 +140,10 @@ def fetch_data_from_node(node, query, params=None):
         print(f"Error in fetching data: Node {node['id']} is not connected.")
     return None
 
-
-# -- ROUTES --
+# ========== WEB ROUTES ==========
 @app.route('/')
 def home():
-    #TODO: do proper master-slave node selection
-    node = get_master_node()
-    try_connection(node)
-
-    if not node["engine"]:
-        return render_template("error.html", message="Application is not currently connected to the database.")
-    
-    query = text("SELECT COUNT(*) FROM games;")
-    data = fetch_data_from_node(node, query)
-
-    session['total'] = data[0][0]
-    session['node'] = node['id']
-
-    if data:
-        return render_template("all_games.html", total_count=session.get('total', 0))
-    
-    return render_template("error.html", message="No data found or an error occured.")
+    return render_template("all_games.html", filter="all")
 
 @app.route('/new_game')
 def new_game():
@@ -165,11 +151,11 @@ def new_game():
     node = next((node for node in nodes if node["id"] == node_id), None)
 
     #TODO: auto-increment appid after adding game
-    query = text("SELECT AppID FROM games ORDER BY AppID DESC LIMIT 1;")
-    new_id = fetch_data_from_node(node, query)
-    session['new_id'] = new_id[0][0] + 10
+    # query = text("SELECT AppID FROM games ORDER BY AppID DESC LIMIT 1;")
+    # new_id = fetch_data_from_node(node, query)
+    # session['new_id'] = new_id[0][0] + 10
 
-    return render_template("new_game.html", AppID=session.get('new_id'))
+    return render_template("new_game.html")
 
 @app.route('/view_game/<int:appid>')
 def view_game(appid):
@@ -229,46 +215,32 @@ def edit_game(appid):
             }
     return render_template("edit_game.html", game=game)
 
-# @app.route('/all_games')
-# def all_games():
-#     # close all connections before accessing this node
-#     close_connections()
-
-#     node = nodes[0] # all games node
-#     try_connection(node)
-
-#     if not node["engine"]:
-#         return render_template("error.html", message="Application is not currently connected to the database.")
-    
-#     query = "SELECT COUNT(*) FROM games;"
-#     data = fetch_data_from_node(node, query)
-
-#     session['total'] = data[0][0]
-#     session['engine'] = node['id']
-
-#     if data:
-#         return render_template("all_games.html", total_count=session.get('total', 0))
-    
-#     return render_template("error.html", message="No data found or an error occured.")
-
-@app.route('/search_all')
+@app.route('/search', methods=['GET'])
 def search_all():
-    #TODO: proper master-slave node setup
-    node_id = session.get('node')
-    node = next((node for node in nodes if node["id"] == node_id), None)
-
     search = request.args.get('search')
+    filter = request.args.get('filter')
+
+    #TODO: proper master-slave node setup?
+    # switch active node depending on selected filter
+    if (filter == "all"):
+        node = get_master_node()
+    else:
+        node = get_slave_node(filter)
+        
+    try_connection(node)
 
     if not node["engine"]:
         return render_template("error.html", message="Application is not currently connected to the database.")
-    
+    else:
+        session['node'] = node['id']
+
     if search:
         query = text("SELECT AppID, name FROM games WHERE AppID = :search OR `name` LIKE :search_like")
         params = {"search": search, "search_like": f"%{search}%"}
 
-        data = fetch_data_from_node(node, query, params)                                        # TODO:
-        return render_template("table.html", rows=data, query=search, total_count=session.get('total', 0), result_count=-1)
-    
+        data = fetch_data_from_node(node, query, params)                   
+        return render_template("table.html", rows=data, query=search, result_count=len(data), filter=filter)
+
 
 @app.template_filter('format_date')
 def format_date(value):
