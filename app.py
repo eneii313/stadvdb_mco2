@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, session
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime, date
 import pymysql
@@ -14,45 +14,44 @@ HOST = "ccscloud.dlsu.edu.ph"
 PASSWORD = "password"
 DATABASE = "mco2"
 USER = "user1"
-SCHEMA = "games"
+SCHEMA = "mco2"
 PORT = 3000
 
+
 nodes = [
-    {"host": HOST, "id": 21262, "user": USER, "online": True, "engine": None}, # master node
-    {"host": HOST, "id": 21272, "user": USER, "online": True, "engine": None}, # windows exclusive node
-    {"host": HOST, "id": 21282, "user": USER, "online": True, "engine": None}, # multiplatform node
+    {"host": HOST, "id": 21262, "user": USER, "online": True, "engine": None, "session": None}, # master node
+    {"host": HOST, "id": 21272, "user": USER, "online": True, "engine": None, "session": None}, # windows exclusive node
+    {"host": HOST, "id": 21282, "user": USER, "online": True, "engine": None, "session": None}, # multiplatform node
 ]
 
 #nodes = [
-#    {"host": "10.2.0.126",  "id": 3306, "user": USER, "online": True, "engine": None},
-#    {"host": "10.2.0.127", "id": 3306, "user": USER, "online": True, "engine": None},
-#    {"host": "10.2.0.128", "id": 3306, "user": USER, "online": True, "engine": None},
+#    {"host": "10.2.0.126",  "id": 3306, "user": USER, "online": True, "engine": None, "session": None},
+#    {"host": "10.2.0.127", "id": 3306, "user": USER, "online": True, "engine": None, "session": None},
+#    {"host": "10.2.0.128", "id": 3306, "user": USER, "online": True, "engine": None, "session": None},
 #]
 
 
-# DB connections to each node
-engine_url_template = f"mysql+pymysql://{USER}:{PASSWORD}@{HOST}:{{port}}/{SCHEMA}"
-def init_connections(): 
-    for node in nodes:
-        engine_url =  f"mysql+pymysql://{USER}:{PASSWORD}@{HOST}:{{port}}/{SCHEMA}"
-
-# try to connect to a specific node
 def try_connection(node):
     try:
-        connection = pymysql.connect(
-            host=node["host"],
-            port=node["id"],
-            user=node["user"],
-            password=PASSWORD,
-            database=DATABASE
-        )
-        print(f"Connected to node {node['id']}")
-        node["engine"] = connection
-    
+        engine_url =  f"mysql+pymysql://{USER}:{PASSWORD}@{HOST}:{node['id']}/{SCHEMA}"
+        engine = create_engine(engine_url)
+
+        with engine.connect() as connection:
+            print(f"Connected to node {node['id']}")
+
+        node['engine'] = engine
+        node['session'] = sessionmaker(bind=node['engine'])
+        node['online'] = True
+
     except Exception as e:
         node["online"] = False
         print(f"Failed to connect to node {node['id']}: {e}")
 
+# DB connections to each node
+def init_connections(): 
+    for node in nodes:
+        try_connection(node)
+        
 
 # create connection to all nodes
 # def init_connections():
@@ -60,23 +59,78 @@ def try_connection(node):
 #         if node["online"] and not node["engine"]:
 #             try_connection(node)
 
+def get_master_node():
+    return nodes[0]
+
+def get_slave_node(game_type):
+    if game_type == 'windows':
+        return nodes[1]
+    elif game_type == 'multiplatform':
+        return nodes[2]
+    else:
+        raise ValueError("Invalid game type. Use 'windows' or 'multiplatform'.")
+
+
+# try to connect to a specific node
+# def try_connection(node):
+#     try:
+#         connection = pymysql.connect(
+#             host=node["host"],
+#             port=node["id"],
+#             user=node["user"],
+#             password=PASSWORD,
+#             database=DATABASE
+#         )
+#         print(f"Connected to node {node['id']}")
+#         node["engine"] = connection
+    
+#     except Exception as e:
+#         node["online"] = False
+#         print(f"Failed to connect to node {node['id']}: {e}")
+
 
 # close all connections
+# def close_connections():
+#     for node in nodes:
+#         if node["engine"]:
+#             node["engine"].close()
+#             node["engine"] = None
+#             print(f"Connection to node {node['id']} closed.")
+
 def close_connections():
     for node in nodes:
+        if node["session"]:
+            node["session"].close()
+            node["session"] = None
+            print(f"Session for node {node['id']} closed.")
+    
         if node["engine"]:
-            node["engine"].close()
+            node["engine"].dispose()
             node["engine"] = None
             print(f"Connection to node {node['id']} closed.")
 
 
+# def fetch_data_from_node(node, query, params=None):
+#     if node["engine"]:
+#         try:
+#             with node["engine"].cursor() as cursor:
+#                 cursor.execute(query, params)
+#                 result = cursor.fetchall()
+#                 return result
+#         except Exception as e:
+#             print(f"Error querying node {node['id']}: {e}")
+#     else:
+#         print(f"Error in fetching data: Node {node['id']} is not connected.")
+#     return None
+
+
+# -- SQL CRUD ROUTES --
 def fetch_data_from_node(node, query, params=None):
-    if node["engine"]:
+    Session = node['session']()
+    if Session:
         try:
-            with node["engine"].cursor() as cursor:
-                cursor.execute(query, params)
-                result = cursor.fetchall()
-                return result
+            data = Session.execute(query, params).fetchall()
+            return data
         except Exception as e:
             print(f"Error querying node {node['id']}: {e}")
     else:
@@ -84,25 +138,21 @@ def fetch_data_from_node(node, query, params=None):
     return None
 
 
-# -- SQL ROUTES FOR UPDATING DB --
-
-
-
 # -- ROUTES --
 @app.route('/')
 def home():
-    #TODO: do proper node selection
-    node = nodes[0] # all games node
+    #TODO: do proper master-slave node selection
+    node = get_master_node()
     try_connection(node)
 
     if not node["engine"]:
         return render_template("error.html", message="Application is not currently connected to the database.")
     
-    query = "SELECT COUNT(*) FROM games;"
+    query = text("SELECT COUNT(*) FROM games;")
     data = fetch_data_from_node(node, query)
 
     session['total'] = data[0][0]
-    session['engine'] = node['id']
+    session['node'] = node['id']
 
     if data:
         return render_template("all_games.html", total_count=session.get('total', 0))
@@ -111,11 +161,11 @@ def home():
 
 @app.route('/new_game')
 def new_game():
-    node_id = session.get('engine')
+    node_id = session.get('node')
     node = next((node for node in nodes if node["id"] == node_id), None)
 
     #TODO: auto-increment appid after adding game
-    query = "SELECT AppID FROM games ORDER BY AppID DESC LIMIT 1;"
+    query = text("SELECT AppID FROM games ORDER BY AppID DESC LIMIT 1;")
     new_id = fetch_data_from_node(node, query)
     session['new_id'] = new_id[0][0] + 10
 
@@ -123,11 +173,11 @@ def new_game():
 
 @app.route('/view_game/<int:appid>')
 def view_game(appid):
-    node_id = session.get('engine')
+    node_id = session.get('node')
     node = next((node for node in nodes if node["id"] == node_id), None)
 
-    query = "SELECT * FROM games WHERE AppID = %s"
-    params = (appid)
+    query = text("SELECT * FROM games WHERE AppID = :appid")
+    params = {"appid":appid}
     data = fetch_data_from_node(node, query, params)
     data = data[0]
     game = {
@@ -152,11 +202,11 @@ def view_game(appid):
 
 @app.route('/edit_game/<int:appid>')
 def edit_game(appid):
-    node_id = session.get('engine')
+    node_id = session.get('node')
     node = next((node for node in nodes if node["id"] == node_id), None)
 
-    query = "SELECT * FROM games WHERE AppID = %s"
-    params = (appid)
+    query = text("SELECT * FROM games WHERE AppID = :appid")
+    params = {"appid":appid}
     data = fetch_data_from_node(node, query, params)
     data = data[0]
     game = {
@@ -179,31 +229,32 @@ def edit_game(appid):
             }
     return render_template("edit_game.html", game=game)
 
-@app.route('/all_games')
-def all_games():
-    # close all connections before accessing this node
-    close_connections()
+# @app.route('/all_games')
+# def all_games():
+#     # close all connections before accessing this node
+#     close_connections()
 
-    node = nodes[0] # all games node
-    try_connection(node)
+#     node = nodes[0] # all games node
+#     try_connection(node)
 
-    if not node["engine"]:
-        return render_template("error.html", message="Application is not currently connected to the database.")
+#     if not node["engine"]:
+#         return render_template("error.html", message="Application is not currently connected to the database.")
     
-    query = "SELECT COUNT(*) FROM games;"
-    data = fetch_data_from_node(node, query)
+#     query = "SELECT COUNT(*) FROM games;"
+#     data = fetch_data_from_node(node, query)
 
-    session['total'] = data[0][0]
-    session['engine'] = node['id']
+#     session['total'] = data[0][0]
+#     session['engine'] = node['id']
 
-    if data:
-        return render_template("all_games.html", total_count=session.get('total', 0))
+#     if data:
+#         return render_template("all_games.html", total_count=session.get('total', 0))
     
-    return render_template("error.html", message="No data found or an error occured.")
+#     return render_template("error.html", message="No data found or an error occured.")
 
 @app.route('/search_all')
 def search_all():
-    node_id = session.get('engine')
+    #TODO: proper master-slave node setup
+    node_id = session.get('node')
     node = next((node for node in nodes if node["id"] == node_id), None)
 
     search = request.args.get('search')
@@ -212,11 +263,11 @@ def search_all():
         return render_template("error.html", message="Application is not currently connected to the database.")
     
     if search:
-        query = "SELECT AppID, name FROM games WHERE AppID = %s OR `name` LIKE %s"
-        params = (search, f"%{search}%")
+        query = text("SELECT AppID, name FROM games WHERE AppID = :search OR `name` LIKE :search_like")
+        params = {"search": search, "search_like": f"%{search}%"}
 
-        data = fetch_data_from_node(node, query, params)
-        return render_template("table.html", rows=data, query=search, total_count=session.get('total', 0), result_count=len(data))
+        data = fetch_data_from_node(node, query, params)                                        # TODO:
+        return render_template("table.html", rows=data, query=search, total_count=session.get('total', 0), result_count=-1)
     
 
 @app.template_filter('format_date')
