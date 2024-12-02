@@ -129,15 +129,19 @@ def create_game(game):
 #  READ TRANSACTION
 def fetch_data_from_node(node, query, params=None):
     Session = node['session']()
-    if Session:
-        try:
-            data = Session.execute(query, params).fetchall()
-            Session.close()
-            return data
-        except Exception as e:
-            print(f"Error querying node {node['id']}: {e}")
-    else:
-        print(f"Error in fetching data: Node {node['id']} is not connected.")
+    
+    with Session.begin():
+        
+        Session.connection(execution_options={"isolation_level": "READ COMMITTED"})
+        if Session:
+            try:
+                data = Session.execute(query, params).fetchall()
+                Session.close()
+                return data
+            except Exception as e:
+                print(f"Error querying node {node['id']}: {e}")
+        else:
+            print(f"Error in fetching data: Node {node['id']} is not connected.")
     return None
 
 # ========== WEB ROUTES ==========
