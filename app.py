@@ -1,23 +1,26 @@
 from flask import Flask, render_template, request, session
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 from datetime import datetime, date
 import pymysql
-import atexit
 
 app = Flask(__name__)
 app.secret_key = '12345'
 
-PORT = 3000
+
 
 # Database Nodes
 HOST = "ccscloud.dlsu.edu.ph"
 PASSWORD = "password"
 DATABASE = "mco2"
 USER = "user1"
+SCHEMA = "games"
+PORT = 3000
 
 nodes = [
-    {"host": "ccscloud.dlsu.edu.ph", "id": 21262, "user": USER, "online": True, "engine": None},
-    {"host": "ccscloud.dlsu.edu.ph", "id": 21272, "user": USER, "online": True, "engine": None},
-    {"host": "ccscloud.dlsu.edu.ph", "id": 21282, "user": USER, "online": True, "engine": None},
+    {"host": HOST, "id": 21262, "user": USER, "online": True, "engine": None}, # master node
+    {"host": HOST, "id": 21272, "user": USER, "online": True, "engine": None}, # windows exclusive node
+    {"host": HOST, "id": 21282, "user": USER, "online": True, "engine": None}, # multiplatform node
 ]
 
 #nodes = [
@@ -25,6 +28,13 @@ nodes = [
 #    {"host": "10.2.0.127", "id": 3306, "user": USER, "online": True, "engine": None},
 #    {"host": "10.2.0.128", "id": 3306, "user": USER, "online": True, "engine": None},
 #]
+
+
+# DB connections to each node
+engine_url_template = f"mysql+pymysql://{USER}:{PASSWORD}@{HOST}:{{port}}/{SCHEMA}"
+def init_connections(): 
+    for node in nodes:
+        engine_url =  f"mysql+pymysql://{USER}:{PASSWORD}@{HOST}:{{port}}/{SCHEMA}"
 
 # try to connect to a specific node
 def try_connection(node):
@@ -45,10 +55,10 @@ def try_connection(node):
 
 
 # create connection to all nodes
-def init_connections():
-    for node in nodes:
-        if node["online"] and not node["engine"]:
-            try_connection(node)
+# def init_connections():
+#     for node in nodes:
+#         if node["online"] and not node["engine"]:
+#             try_connection(node)
 
 
 # close all connections
