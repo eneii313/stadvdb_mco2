@@ -34,7 +34,7 @@ nodes = [
 # try to connect to a specific node
 def try_connection(node):
     try:
-        engine_url =  f"mysql+pymysql://{USER}:{PASSWORD}@{HOST}:{node['id']}/{SCHEMA}"
+        engine_url =  f"mysql+pymysql://{USER}:{PASSWORD}@{node['host']}:{node['id']}/{SCHEMA}"
         engine = create_engine(engine_url, echo=True)
 
         with engine.connect() as connection:
