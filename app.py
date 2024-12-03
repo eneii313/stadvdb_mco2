@@ -90,7 +90,11 @@ def write_game():
     mac =  1 if request.form.get('mac') else 0
     linux =  1 if request.form.get('linux') else 0
 
+    id_query = text("SELECT AppID FROM games ORDER BY AppID DESC LIMIT 1;")
+    new_id = fetch_data_from_node(get_master_node(), id_query)[0][0] + 10
+
     game = {
+        "AppID": new_id,
         "name": request.form.get('name'),
         "release_date": request.form.get('release_date'),
         "price": float(request.form.get('price')), 
@@ -108,13 +112,8 @@ def write_game():
         "median_playtime_2weeks": 0
         }
     
-    query = text("""
-    INSERT INTO games
-    (name, release_date, price, required_age, dlc_count, achievements, about_the_game, windows, mac, linux, peak_ccu, average_playtime_forever, average_playtime_2weeks, median_playtime_forever, median_playtime_2weeks)
-    VALUES (:name, :release_date, :price, :required_age, :dlc_count, :achievements, :about_the_game, :windows, :mac, :linux, :peak_ccu, :average_playtime_forever, :average_playtime_2weeks, :median_playtime_forever, :median_playtime_2weeks)
-    """)
 
-    query_with_id = text("""
+    query = text("""
     INSERT INTO games
     (AppID, name, release_date, price, required_age, dlc_count, achievements, about_the_game, windows, mac, linux, peak_ccu, average_playtime_forever, average_playtime_2weeks, median_playtime_forever, median_playtime_2weeks)
     VALUES (:AppID, :name, :release_date, :price, :required_age, :dlc_count, :achievements, :about_the_game, :windows, :mac, :linux, :peak_ccu, :average_playtime_forever, :average_playtime_2weeks, :median_playtime_forever, :median_playtime_2weeks)
@@ -144,9 +143,6 @@ def write_game():
 
             try:
                 slave_session.execute(query, game)
-                new_game_id = slave_session.execute('SELECT LAST_INSERT_ID()').scalar()
-                game['AppID'] = new_game_id
-                print("!!!!!!!!!!!!!!!!!!!!!!!!!!RESULT: ", new_game_id)
                 slave_session.commit()  # Commit to the slave first
                 print(f"Game added to slave: {slave_session.bind.url}")
             except SQLAlchemyError as e:
@@ -156,14 +152,15 @@ def write_game():
                 return render_template("error.html", message=f"Error adding game to slave: {e}")
 
         # Commit to the master only after successful commit to the slave
-        master_session.execute(query_with_id, game)
+        master_session.execute(query, game)
         master_session.commit()
         print("Game added to master:", master_session.bind.url)
         messagebox.showinfo("Success", "Game successfully added.")
-        
 
-        # return redirect(url_for('view_game', id=game_id))
-        return redirect(url_for('/'))
+        # set node for viewing newly added game
+        session['node'] = get_master_node()['id']
+
+        return redirect(url_for('view_game', appid=new_id))
 
     except Exception as e:
         # Rollback if there is an error
