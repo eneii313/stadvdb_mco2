@@ -2,7 +2,7 @@
 
 {% block content %}
 <h3><i class="fa fa-pencil"></i> Edit Game</h3>
-<form id="edit_game_form">
+<form id="edit_game_form" method="POST">
 
     <div class="form-group input-group my-2">
         <div class="input-group-prepend">
@@ -22,8 +22,7 @@
     	<div class="input-group-prepend">
 		    <span class="input-group-text d-block w-100 h-100"> <i class="fa fa-align-right"></i> Description</span>
 		 </div>
-        <textarea name="about_the_game" class="form-control" rows="3" placeholder="Game description">
-           {{game.about_the_game}}
+        <textarea name="about_the_game" class="form-control" rows="3" placeholder="Game description">{{game.about_the_game}}
         </textarea>
     </div> 
 
@@ -61,7 +60,7 @@
             <button type="submit" class="btn btn-dark btn-block"> Update Game </button>
         </div>
         <div class="col-auto">
-            <a id="delete-game-btn" class="btn btn-danger" href="/delete_game" role="button">Delete Game</a>
+            <a id="delete-game-btn" class="btn btn-danger" href="/delete_game/{{ game.app_id }}" role="button">Delete Game</a>
         </div>
     </div>
 

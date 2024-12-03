@@ -164,13 +164,13 @@ def write_game():
 
     except Exception as e:
         # Rollback if there is an error
-        if slave_node is not None:
+        for slave_session in slave_sessions:
             slave_session.rollback()
         master_session.rollback()
         return render_template("error.html", message=f"Error adding game: {e}")
 
     finally:
-        if slave_node is not None:
+        for slave_session in slave_sessions:
             slave_session.close()
         master_session.close()
 
@@ -194,6 +194,60 @@ def fetch_data_from_node(node, query, params=None):
         print(f"Error in fetching data: Node {node['id']} is not connected.")
         
     return None
+
+
+# DELETE TRANSACTION
+@app.route('/delete_game/<int:appid>')
+def delete_game(appid):
+
+    query = text("DELETE FROM games WHERE AppID = :appid")
+    params = {"appid":appid}
+
+    master_session = get_master_node()['session']()
+    slave_sessions = [get_slave_node("windows")['session'](), get_slave_node("multiplatform")['session']()]
+
+    try:
+        master_session.begin()
+
+        for slave_session in slave_sessions:
+            slave_session.begin()
+            slave_session.connection(execution_options={'isolation_level': 'SERIALIZABLE'})
+
+            # start a subtransaction on the slave
+            savepoint_slave = slave_session.begin_nested()
+
+            try:
+                slave_session.execute(query, params)
+                slave_session.commit()  # Commit to the slave first
+                print(f"Game deleted from slave: {slave_session.bind.url}")
+            except SQLAlchemyError as e:
+                savepoint_slave.rollback()  # Rollback to savepoint if error occurs
+                print(f"Error deleting game from slave: {e}")
+                slave_session.rollback()
+                return render_template("error.html", message=f"Error deleting game from slave: {e}")
+
+        # Commit to the master only after successful commit to the slave
+        master_session.execute(query, params)
+        master_session.commit()
+        print("Game deleted from master:", master_session.bind.url)
+        messagebox.showinfo("Success", "Game successfully deleted.")
+
+        # set default node to master node
+        session['node'] = get_master_node()['id']
+
+        return redirect(url_for('home'))
+
+    except Exception as e:
+        # Rollback if there is an error
+        for slave_session in slave_sessions:
+            slave_session.rollback()
+        master_session.rollback()
+        return render_template("error.html", message=f"Error adding game: {e}")
+
+    finally:
+        for slave_session in slave_sessions:
+            slave_session.close()
+        master_session.close()
 
 # ========== WEB ROUTES ==========
 @app.route('/')
@@ -273,7 +327,6 @@ def search_all():
     search = request.args.get('search')
     filter = request.args.get('filter')
 
-    #TODO: proper master-slave node setup?
     # switch active node depending on selected filter
     if (filter == "all"):
         node = get_master_node()
