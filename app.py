@@ -112,7 +112,12 @@ def write_game():
     INSERT INTO games
     (name, release_date, price, required_age, dlc_count, achievements, about_the_game, windows, mac, linux, peak_ccu, average_playtime_forever, average_playtime_2weeks, median_playtime_forever, median_playtime_2weeks)
     VALUES (:name, :release_date, :price, :required_age, :dlc_count, :achievements, :about_the_game, :windows, :mac, :linux, :peak_ccu, :average_playtime_forever, :average_playtime_2weeks, :median_playtime_forever, :median_playtime_2weeks)
-    RETURNING AppID
+    """)
+
+    query_with_id = text("""
+    INSERT INTO games
+    (AppID, name, release_date, price, required_age, dlc_count, achievements, about_the_game, windows, mac, linux, peak_ccu, average_playtime_forever, average_playtime_2weeks, median_playtime_forever, median_playtime_2weeks)
+    VALUES (:AppID, :name, :release_date, :price, :required_age, :dlc_count, :achievements, :about_the_game, :windows, :mac, :linux, :peak_ccu, :average_playtime_forever, :average_playtime_2weeks, :median_playtime_forever, :median_playtime_2weeks)
     """)
 
     master_session = get_master_node()['session']()
@@ -122,12 +127,10 @@ def write_game():
     if windows == 1 and mac == 0 and linux == 0:
         slave_node = get_slave_node("windows")
         slave_sessions.append(slave_node['session']())
-        print("Adding to Windows node...")
 
     if ((windows == 1) + (mac == 1) + (linux == 1)) >= 2:
         slave_node = get_slave_node("multiplatform")
         slave_sessions.append(slave_node['session']())
-        print("Adding to multiplatform node...")
 
     try:
         master_session.begin()
@@ -140,8 +143,10 @@ def write_game():
             savepoint_slave = slave_session.begin_nested()
 
             try:
-                result = slave_session.execute(query, game)
-                print("!!!!!!!!!!!!!!!!!!!!!!!!!!RESULT: ", result)
+                slave_session.execute(query, game)
+                new_game_id = slave_session.execute('SELECT LAST_INSERT_ID()').scalar()
+                game['AppID'] = new_game_id
+                print("!!!!!!!!!!!!!!!!!!!!!!!!!!RESULT: ", new_game_id)
                 slave_session.commit()  # Commit to the slave first
                 print(f"Game added to slave: {slave_session.bind.url}")
             except SQLAlchemyError as e:
@@ -151,10 +156,11 @@ def write_game():
                 return render_template("error.html", message=f"Error adding game to slave: {e}")
 
         # Commit to the master only after successful commit to the slave
-        # master_session.add(game)
+        master_session.execute(query_with_id, game)
         master_session.commit()
         print("Game added to master:", master_session.bind.url)
         messagebox.showinfo("Success", "Game successfully added.")
+        
 
         # return redirect(url_for('view_game', id=game_id))
         return redirect(url_for('/'))
@@ -164,7 +170,7 @@ def write_game():
         if slave_node is not None:
             slave_session.rollback()
         master_session.rollback()
-        return render_template("error.html", f"Error adding game: {e}")
+        return render_template("error.html", message=f"Error adding game: {e}")
 
     finally:
         if slave_node is not None:
@@ -177,18 +183,19 @@ def write_game():
 def fetch_data_from_node(node, query, params=None):
     Session = node['session']()
     
-    with Session.begin():
-        
-        Session.connection(execution_options={"isolation_level": "READ COMMITTED"})
-        if Session:
+    if Session:
+        with Session.begin():
+            
+            Session.connection(execution_options={"isolation_level": "READ COMMITTED"})
             try:
                 data = Session.execute(query, params).fetchall()
                 Session.close()
                 return data
             except Exception as e:
                 print(f"Error querying node {node['id']}: {e}")
-        else:
-            print(f"Error in fetching data: Node {node['id']} is not connected.")
+    else:
+        print(f"Error in fetching data: Node {node['id']} is not connected.")
+        
     return None
 
 # ========== WEB ROUTES ==========
@@ -208,26 +215,31 @@ def view_game(appid):
     query = text("SELECT * FROM games WHERE AppID = :appid")
     params = {"appid":appid}
     data = fetch_data_from_node(node, query, params)
-    data = data[0]
-    game = {
-            "app_id": data[0],
-            "name": data[1],
-            "release_date": data[2],
-            "price": float(data[3]), 
-            "required_age": data[4],
-            "dlc_count": data[5],
-            "achievements": data[6],
-            "about_the_game": data[7],
-            "windows": data[8],
-            "mac": data[9],
-            "linux": data[10],
-            "peak_ccu": data[11],
-            "average_playtime_forever": data[12],
-            "average_playtime_2weeks": data[13],
-            "median_playtime_forever": data[14],
-            "median_playtime_2weeks": data[15]
-            }
-    return render_template("view_game.html", game=game)
+    
+    if data:
+        data = data[0]
+        game = {
+                "app_id": data[0],
+                "name": data[1],
+                "release_date": data[2],
+                "price": float(data[3]), 
+                "required_age": data[4],
+                "dlc_count": data[5],
+                "achievements": data[6],
+                "about_the_game": data[7],
+                "windows": data[8],
+                "mac": data[9],
+                "linux": data[10],
+                "peak_ccu": data[11],
+                "average_playtime_forever": data[12],
+                "average_playtime_2weeks": data[13],
+                "median_playtime_forever": data[14],
+                "median_playtime_2weeks": data[15]
+                }
+        return render_template("view_game.html", game=game)
+    else:
+        return render_template("error.html", message=f"Game with id {appid} not found.")
+
 
 @app.route('/edit_game/<int:appid>')
 def edit_game(appid):
@@ -257,6 +269,7 @@ def edit_game(appid):
             "median_playtime_2weeks": data[15]
             }
     return render_template("edit_game.html", game=game)
+
 
 @app.route('/search', methods=['GET'])
 def search_all():
