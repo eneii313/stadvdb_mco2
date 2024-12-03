@@ -259,6 +259,7 @@ def update_game(appid):
         new_nodes = determine_slave_nodes(windows, mac, linux)
 
         master_session.begin()
+        master_session.execute(u_query, game)
 
         # delete item from old nodes where it shouldn't be in
         for node in old_nodes:
@@ -305,7 +306,6 @@ def update_game(appid):
 
 
         # Commit to the master only after successful commit to the slave
-        master_session.execute(u_query, game)
         master_session.commit()
         print("Game updated to master:", master_session.bind.url)
         messagebox.showinfo("Success", "Game successfully updated.")
