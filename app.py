@@ -1,8 +1,10 @@
-from flask import Flask, render_template, request, session
+from flask import Flask, render_template, redirect, url_for, request, session
 from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.exc import SQLAlchemyError 
+from sqlalchemy.orm import sessionmaker, scoped_session
 from datetime import datetime, date
-import pymysql
+import tkinter as tk
+from tkinter import messagebox
 
 app = Flask(__name__)
 app.secret_key = '12345'
@@ -41,7 +43,7 @@ def try_connection(node):
             print(f"Connected to node {node['id']}")
 
         node['engine'] = engine
-        node['session'] = sessionmaker(bind=node['engine'])
+        node['session'] = scoped_session(sessionmaker(bind=node['engine']))
         node['online'] = True
 
     except Exception as e:
@@ -52,13 +54,7 @@ def try_connection(node):
 def init_connections(): 
     for node in nodes:
         try_connection(node)
-        
 
-# create connection to all nodes
-# def init_connections():
-#     for node in nodes:
-#         if node["online"] and not node["engine"]:
-#             try_connection(node)
 
 def get_master_node():
     return nodes[0]
@@ -71,33 +67,7 @@ def get_slave_node(game_type):
     else:
         raise ValueError("Invalid game type. Use 'windows' or 'multiplatform'.")
 
-
-# try to connect to a specific node
-# def try_connection(node):
-#     try:
-#         connection = pymysql.connect(
-#             host=node["host"],
-#             port=node["id"],
-#             user=node["user"],
-#             password=PASSWORD,
-#             database=DATABASE
-#         )
-#         print(f"Connected to node {node['id']}")
-#         node["engine"] = connection
-    
-#     except Exception as e:
-#         node["online"] = False
-#         print(f"Failed to connect to node {node['id']}: {e}")
-
-
 # close all connections
-# def close_connections():
-#     for node in nodes:
-#         if node["engine"]:
-#             node["engine"].close()
-#             node["engine"] = None
-#             print(f"Connection to node {node['id']} closed.")
-
 def close_connections():
     for node in nodes:
         if node["session"]:
@@ -113,17 +83,94 @@ def close_connections():
 
 # ========== SQL CRUD ROUTES ==========
 # WRITE TRANSACTION
-def create_game(game):
-    #TODO: write to slave nodes after master node
-    master_node = get_master_node()
-    Session = master_node['session']()
+@app.route('/write_game', methods=['POST'])
+def write_game():
 
+    windows = 1 if request.form.get('windows') else 0
+    mac =  1 if request.form.get('mac') else 0
+    linux =  1 if request.form.get('linux') else 0
 
-    # game = session.query(Game).filter_by(id=data_id).first()
-    # game.name = new_name
-    # session.commit()
-    # print(f"Written to master: {new_name}")
-    Session.close()
+    game = {
+        "name": request.form.get('name'),
+        "release_date": request.form.get('release_date'),
+        "price": float(request.form.get('price')), 
+        "required_age": int(request.form.get('required_age')),
+        "dlc_count": 0,
+        "achievements": 0,
+        "about_the_game": request.form.get('about_the_game'),
+        "windows": windows,
+        "mac": mac,
+        "linux": linux,
+        "peak_ccu": 0,
+        "average_playtime_forever": 0,
+        "average_playtime_2weeks": 0,
+        "median_playtime_forever": 0,
+        "median_playtime_2weeks": 0
+        }
+    
+    query = text("""
+    INSERT INTO games
+    (name, release_date, price, required_age, dlc_count, achievements, about_the_game, windows, mac, linux, peak_ccu, average_playtime_forever, average_playtime_2weeks, median_playtime_forever, median_playtime_2weeks)
+    VALUES (:name, :release_date, :price, :required_age, :dlc_count, :achievements, :about_the_game, :windows, :mac, :linux, :peak_ccu, :average_playtime_forever, :average_playtime_2weeks, :median_playtime_forever, :median_playtime_2weeks)
+    RETURNING AppID
+    """)
+
+    master_session = get_master_node()['session']()
+    slave_sessions = []
+
+    # Determine slave node to write into
+    if windows == 1 and mac == 0 and linux == 0:
+        slave_node = get_slave_node("windows")
+        slave_sessions.append(slave_node['session']())
+        print("Adding to Windows node...")
+
+    if ((windows == 1) + (mac == 1) + (linux == 1)) >= 2:
+        slave_node = get_slave_node("multiplatform")
+        slave_sessions.append(slave_node['session']())
+        print("Adding to multiplatform node...")
+
+    try:
+        master_session.begin()
+
+        for slave_session in slave_sessions:
+            slave_session.begin()
+            slave_session.connection(execution_options={'isolation_level': 'SERIALIZABLE'})
+
+            # start a subtransaction on the slave
+            savepoint_slave = slave_session.begin_nested()
+
+            try:
+                result = slave_session.execute(query, game)
+                print("!!!!!!!!!!!!!!!!!!!!!!!!!!RESULT: ", result)
+                slave_session.commit()  # Commit to the slave first
+                print(f"Game added to slave: {slave_session.bind.url}")
+            except SQLAlchemyError as e:
+                savepoint_slave.rollback()  # Rollback to savepoint if error occurs
+                print(f"Error adding game to slave: {e}")
+                slave_session.rollback()
+                return render_template("error.html", message=f"Error adding game to slave: {e}")
+
+        # Commit to the master only after successful commit to the slave
+        # master_session.add(game)
+        master_session.commit()
+        print("Game added to master:", master_session.bind.url)
+        messagebox.showinfo("Success", "Game successfully added.")
+
+        # return redirect(url_for('view_game', id=game_id))
+        return redirect(url_for('/'))
+
+    except Exception as e:
+        # Rollback if there is an error
+        if slave_node is not None:
+            slave_session.rollback()
+        master_session.rollback()
+        return render_template("error.html", f"Error adding game: {e}")
+
+    finally:
+        if slave_node is not None:
+            slave_session.close()
+        master_session.close()
+
 
 
 #  READ TRANSACTION
@@ -151,14 +198,6 @@ def home():
 
 @app.route('/new_game')
 def new_game():
-    node_id = session.get('node')
-    node = next((node for node in nodes if node["id"] == node_id), None)
-
-    #TODO: auto-increment appid after adding game
-    # query = text("SELECT AppID FROM games ORDER BY AppID DESC LIMIT 1;")
-    # new_id = fetch_data_from_node(node, query)
-    # session['new_id'] = new_id[0][0] + 10
-
     return render_template("new_game.html")
 
 @app.route('/view_game/<int:appid>')
@@ -258,7 +297,11 @@ def format_date(value):
 # -- MAIN EXECUTION --
 if __name__ == '__main__':
     # app.run(debug=True, host='0.0.0.0', port=80)
+    init_connections()
     app.run(debug=True, port=PORT)
+
+root = tk.Tk()
+root.withdraw() 
 
 # clear sessions when app is shutting down
 # @app.teardown_appcontext
