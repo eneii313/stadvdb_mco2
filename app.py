@@ -178,6 +178,7 @@ def write_game():
 
 #  READ TRANSACTION
 def fetch_data_from_node(node, query, params=None):
+    # this is based on the selected filter on the home page
     Session = node['session']()
     
     if Session:
@@ -194,6 +195,144 @@ def fetch_data_from_node(node, query, params=None):
         print(f"Error in fetching data: Node {node['id']} is not connected.")
         
     return None
+
+# UPDATE TRANSACTION
+@app.route('/update_game/<int:appid>', methods=['POST'])
+def update_game(appid):
+
+    windows = 1 if request.form.get('windows') else 0
+    mac =  1 if request.form.get('mac') else 0
+    linux =  1 if request.form.get('linux') else 0
+
+    game = {
+        "AppID": appid,
+        "name": request.form.get('name'),
+        "release_date": request.form.get('release_date'),
+        "price": float(request.form.get('price')), 
+        "required_age": int(request.form.get('required_age')),
+        "dlc_count": 0,
+        "achievements": 0,
+        "about_the_game": request.form.get('about_the_game'),
+        "windows": windows,
+        "mac": mac,
+        "linux": linux,
+        "peak_ccu": 0,
+        "average_playtime_forever": 0,
+        "average_playtime_2weeks": 0,
+        "median_playtime_forever": 0,
+        "median_playtime_2weeks": 0
+        }
+    
+    a_query = text("""
+    INSERT INTO games
+    (AppID, name, release_date, price, required_age, dlc_count, achievements, about_the_game, windows, mac, linux, peak_ccu, average_playtime_forever, average_playtime_2weeks, median_playtime_forever, median_playtime_2weeks)
+    VALUES (:AppID, :name, :release_date, :price, :required_age, :dlc_count, :achievements, :about_the_game, :windows, :mac, :linux, :peak_ccu, :average_playtime_forever, :average_playtime_2weeks, :median_playtime_forever, :median_playtime_2weeks)
+    """)
+
+    u_query = text("""
+        UPDATE games SET
+        name = :name,
+        release_date = :release_date,
+        price = :price,
+        required_age = :required_age,
+        dlc_count = :dlc_count,
+        achievements = :achievements,
+        about_the_game = :about_the_game,
+        windows = :windows,
+        mac = :mac,
+        linux = :linux
+        WHERE AppID = :AppID
+    """)
+
+    d_query = text("DELETE FROM games WHERE AppID = :appid")
+    s_query = text("SELECT * FROM games WHERE AppID = :appid")
+
+    master_session = get_master_node()['session']()
+
+    
+    try:
+        # determine the old and new slave nodes
+        old_data = fetch_data_from_node(get_master_node(), s_query, {"appid": appid})[0]
+    
+        # Determine slave node to write into
+        old_nodes = determine_slave_nodes(old_data[8], old_data[9], old_data[10])
+        new_nodes = determine_slave_nodes(windows, mac, linux)
+
+        master_session.begin()
+
+        # delete item from old nodes where it shouldn't be in
+        for node in old_nodes:
+            if node['id'] not in [new_node['id'] for new_node in new_nodes]:
+                print("^^^^^^^^^^^^^^^^^^^^^^^^DELETING in node: ", node['id'])
+                Session = node['session']()
+                Session.connection(execution_options={"isolation_level": "SERIALIZABLE"})
+                Session.execute(d_query, {"appid": appid})
+                Session.commit()
+                Session.close()
+        
+        # update or create in new nodes
+        for node in new_nodes:
+            Session = node['session']()
+            Session.connection(execution_options={"isolation_level": "SERIALIZABLE"})
+
+            try:
+                if  node['id'] not in [old_node['id'] for old_node in old_nodes]:
+                    print("^^^^^^^^^^^^^^^^^^^^^^^^ADDING in node: ", node['id'])
+                    Session.execute(a_query, game)
+                else:
+                    print("^^^^^^^^^^^^^^^^^^^^^^^^UPDATING in node: ", node['id'])
+                    Session.execute(u_query, game)
+                Session.commit()
+            except Exception as e:
+                # If something fails in new_nodes, we revert changes in old_nodes
+                for old_node in old_nodes:
+                    old_session = old_node['session']()
+                    try:
+                        old_session.execute(a_query, game)
+                        old_session.commit()
+                    except Exception as old_e:
+                        old_session.rollback()
+                        print(f"Error rolling back old node {old_node['id']}: {old_e}")
+                    finally:
+                        old_session.close()
+
+                Session.rollback()
+                Session.close()
+                return render_template("error.html", f"Error updating game in slave node {node['id']}: {str(e)}")
+            
+            finally:
+                Session.close()
+
+
+        # Commit to the master only after successful commit to the slave
+        master_session.execute(u_query, game)
+        master_session.commit()
+        print("Game updated to master:", master_session.bind.url)
+        messagebox.showinfo("Success", "Game successfully updated.")
+
+        # set node for viewing newly updated game
+        session['node'] = get_master_node()['id']
+
+        return redirect(url_for('view_game', appid=appid))
+
+    except Exception as e:
+        master_session.rollback()
+        for node in old_nodes + new_nodes:
+            Session = node['session']()
+            Session.rollback()
+            Session.close()
+        return render_template("error.html", message=f"Error updating game: {e}")
+
+    finally:
+        master_session.close()
+
+def determine_slave_nodes(windows, mac, linux):
+    nodes = []
+    if windows == 1 and mac == 0 and linux == 0:
+        nodes.append(get_slave_node("windows"))
+    if ((windows == 1) + (mac == 1) + (linux == 1)) >= 2:
+        nodes.append(get_slave_node("multiplatform"))
+    return nodes
 
 
 # DELETE TRANSACTION
