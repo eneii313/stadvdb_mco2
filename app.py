@@ -3,6 +3,7 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime, date
 import pymysql
+import logging
 
 app = Flask(__name__)
 app.secret_key = '12345'
@@ -18,17 +19,17 @@ SCHEMA = "mco2"
 PORT = 3000
 
 
-nodes = [
-    {"host": HOST, "id": 21262, "user": USER, "online": True, "engine": None, "session": None}, # master node
-    {"host": HOST, "id": 21272, "user": USER, "online": True, "engine": None, "session": None}, # windows exclusive node
-    {"host": HOST, "id": 21282, "user": USER, "online": True, "engine": None, "session": None}, # multiplatform node
-]
-
 #nodes = [
-#    {"host": "10.2.0.126",  "id": 3306, "user": USER, "online": True, "engine": None, "session": None},
-#    {"host": "10.2.0.127", "id": 3306, "user": USER, "online": True, "engine": None, "session": None},
-#    {"host": "10.2.0.128", "id": 3306, "user": USER, "online": True, "engine": None, "session": None},
+#    {"host": HOST, "id": 21262, "user": USER, "online": True, "engine": None, "session": None}, # master node
+#    {"host": HOST, "id": 21272, "user": USER, "online": True, "engine": None, "session": None}, # windows exclusive node
+#    {"host": HOST, "id": 21282, "user": USER, "online": True, "engine": None, "session": None}, # multiplatform node
 #]
+
+nodes = [
+    {"host": "10.2.0.126",  "id": 3306, "user": USER, "online": True, "engine": None, "session": None},
+    {"host": "10.2.0.127", "id": 3306, "user": USER, "online": True, "engine": None, "session": None},
+    {"host": "10.2.0.128", "id": 3306, "user": USER, "online": True, "engine": None, "session": None},
+]
 
 
 # try to connect to a specific node
@@ -128,6 +129,7 @@ def create_game(game):
 
 #  READ TRANSACTION
 def fetch_data_from_node(node, query, params=None):
+    node = get_master_node()
     Session = node['session']()
     
     with Session.begin():
@@ -188,6 +190,7 @@ def view_game(appid):
             "median_playtime_forever": data[14],
             "median_playtime_2weeks": data[15]
             }
+    app.logger.info(f"Game data found: {game}")
     return render_template("view_game.html", game=game)
 
 @app.route('/edit_game/<int:appid>')
