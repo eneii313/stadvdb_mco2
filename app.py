@@ -193,7 +193,20 @@ def fetch_data_from_node(node, query, params=None):
                 print(f"Error querying node {node['id']}: {e}")
     else:
         print(f"Error in fetching data: Node {node['id']} is not connected.")
-        
+        print("Attempting to fetch data from the master node...")
+
+    # Fallback to master node
+    master_node = get_master_node()
+    master_session = master_node['session']()
+    try:
+        master_session.connection(execution_options={"isolation_level": "READ COMMITTED"})
+        with master_session.begin():
+            data = master_session.execute(query, params).fetchall()
+            master_session.close()
+            return data
+    except Exception as e:
+        print(f"Error querying master node {master_node['id']}: {e}")
+
     return None
 
 # UPDATE TRANSACTION
